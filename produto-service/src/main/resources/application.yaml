@@ -1,0 +1,20 @@
+spring:
+  application:
+    name: produto-service
+  datasource:
+    url: ${SPRING_DATASOURCE_URL}
+    username: ${SPRING_DATASOURCE_USERNAME}
+    password: ${SPRING_DATASOURCE_PASSWORD}
+
+server:
+  forward-headers-strategy: framework
+
+springdoc:
+  swagger-ui:
+    # Garante que o Swagger busque a especificação OpenAPI na rota do Gateway
+    config-url: /api/produtos/v3/api-docs/swagger-config
+    url: /api/produtos/v3/api-docs
+    path: /swagger-ui.html
+  api-docs:
+    path: /v3/api-docs
+
