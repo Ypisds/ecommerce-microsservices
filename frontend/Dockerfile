@@ -1,42 +1,46 @@
 # =========================================
-# Stage 1: Build the Angular Application
+# Stage 1: Base & Dependencies
 # =========================================
 ARG NODE_VERSION=24.14.1-alpine
-ARG NGINX_VERSION=alpine3.22
+FROM node:${NODE_VERSION} AS base
 
-# Use a lightweight Node.js image for building (customizable via ARG)
-FROM node:${NODE_VERSION} AS builder
-
-# Set the working directory inside the container
 WORKDIR /app
 
-# Copy package-related files first to leverage Docker's caching mechanism
+# Copia arquivos de dependência
 COPY package.json *package-lock.json* ./
 
-# Install project dependencies using npm ci (ensures a clean, reproducible install)
+# Instala dependências usando cache do Docker
 RUN --mount=type=cache,target=/root/.npm npm ci
 
-# Copy the rest of the application source code into the container
+# =========================================
+# Stage 2: Development (Live Reload / HMR)
+# =========================================
+FROM base AS development
+
+# Copia o código da aplicação
 COPY . .
 
-# Build the Angular application
+EXPOSE 4200
+
+# Executa o servidor do Angular liberando acesso externo e polling para o Docker
+CMD ["npx", "ng", "serve", "--host", "0.0.0.0", "--port", "4200", "--poll", "1000", "--public-host", "http://localhost:8000"]
+
+# =========================================
+# Stage 3: Production Build
+# =========================================
+FROM base AS builder
+
+COPY . .
 RUN npm run build
 
 # =========================================
-# Stage 2: Serve Static Files
+# Stage 4: Serve Static Files (Production)
 # =========================================
 FROM node:${NODE_VERSION} AS runner
 
 WORKDIR /app
-
-# Instala um servidor HTTP minimalista
 RUN npm install -g serve
-
-# Copia apenas os arquivos estáticos gerados no build
 COPY --from=builder /app/dist/*/browser ./public
 
-# Expose a porta interna do serviço frontend
 EXPOSE 4200
-
-# Executa o 'serve' apontando para a pasta dos arquivos estáticos com suporte a SPA (-s)
 CMD ["serve", "-s", "public", "-l", "4200"]

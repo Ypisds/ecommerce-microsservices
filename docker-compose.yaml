@@ -29,10 +29,15 @@ services:
       - 5432
   
   frontend:
-    build: ./frontend
-    expose:
-      - 4200
+    build:
+      context: ./frontend
+      target: development
     container_name: angular_app
+    ports:
+      - "4200:4200"
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
   
   nginx:
     image: nginxinc/nginx-unprivileged:alpine3.22
