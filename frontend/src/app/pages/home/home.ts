@@ -1,8 +1,9 @@
 import { Component } from '@angular/core';
+import { SectionPhoto } from '../../components/section-photo/section-photo';
 
 @Component({
   selector: 'app-home',
-  imports: [],
+  imports: [SectionPhoto],
   templateUrl: './home.html',
   styleUrl: './home.css',
 })

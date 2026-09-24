@@ -23,7 +23,7 @@ COPY . .
 EXPOSE 4200
 
 # Executa o servidor do Angular liberando acesso externo e polling para o Docker
-CMD ["npx", "ng", "serve", "--host", "0.0.0.0", "--port", "4200", "--poll", "1000", "--public-host", "http://localhost:8000"]
+CMD ["npx", "ng", "serve", "--host", "0.0.0.0", "--port", "4200", "--poll", "1000"]
 
 # =========================================
 # Stage 3: Production Build
