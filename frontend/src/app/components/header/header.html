@@ -1,29 +1,53 @@
 <header class="w-full border-b border-gray-300">
     <div class="mx-auto flex h-16 max-w-7xl items-center justify-between px-4 sm:px-6 lg:px-8">
-        <div>
+        <div class="flex">
+            <button class="md:hidden hover:bg-gray-300 hover:ring-4 hover:ring-gray-300 hover:cursor-pointer rounded-full mr-4"  (click)="openAside()">
+                <svg lucideMenu [size]="30"></svg>
+            </button>
             <h2 class="font-serif text-2xl sm:text-3xl">Ecommerce</h2>
         </div>
-        <div class="flex">
-            <nav routerLink="" class="text-xl font-serif font-medium transition transform hover:scale-105 hover:cursor-grab mr-4">Home</nav>
-            <nav routerLink="/products" class="text-xl font-serif font-medium transition transform hover:scale-105 hover:cursor-grab">Products</nav>
+        <div class="hidden md:flex">
+            <nav routerLink="" class="text-xl font-serif font-medium transition transform hover:scale-105 hover:cursor-pointer mr-4">Home</nav>
+            <nav routerLink="/products" class="text-xl font-serif font-medium transition transform hover:scale-105 hover:cursor-pointer">Products</nav>
         </div>
         <div class="flex">
-            <button class="hover:scale-105 hover:cursor-grab">
+            <button class="hover:scale-105 hover:cursor-pointer">
                 <svg class="mr-4" lucideSearch [size]="30"></svg>
             </button>
     
-            <button class="hover:scale-105 hover:cursor-grab">
+            <button class="hover:scale-105 hover:cursor-pointer">
                 <svg class="mr-4" lucideHeart [size]="30"></svg>
             </button>
     
-            <button class="hover:scale-105 hover:cursor-grab">
+            <button class="hover:scale-105 hover:cursor-pointer">
                 <svg class="mr-4" lucideShoppingCart [size]="30"></svg>
             </button>
     
-            <button class="hover:scale-105 hover:cursor-grab">
+            <button class="hover:scale-105 hover:cursor-pointer">
                 <svg class="mr-4" lucideCircleUserRound [size]="30"></svg>
             </button>
     
         </div>
     </div>
+
+    
+    <div
+        class="fixed inset-0 z-40 bg-black/30 transition-opacity duration-300"
+        [class.opacity-100]="isOpenAside()"
+        [class.opacity-0]="!isOpenAside()"
+        [class.pointer-events-none]="!isOpenAside()"
+        (click)="openAside()"
+    >
+    </div>
+
+    <aside
+        class="fixed left-0 top-0 z-50 h-screen w-64 bg-white flex flex-col pl-7 pt-5 transition-transform duration-300 ease-in-out"
+        [class.translate-x-0]="isOpenAside()"
+        [class.-translate-x-full]="!isOpenAside()"
+    >
+        <h2 class="text-xl font-bold font-serif mb-1">Pages</h2>
+        <nav routerLink="" class="text-base font-serif font-light hover:cursor-pointer">Home</nav>
+        <nav routerLink="/products" class="text-base font-serif font-light hover:cursor-pointer">Products</nav>
+    </aside>
+    
 </header>
