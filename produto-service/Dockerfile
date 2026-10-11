@@ -13,7 +13,7 @@ COPY pom.xml .
 # Baixa as dependências e compila o código usando cache local do Maven
 COPY src/ src/
 RUN --mount=type=cache,target=/root/.m2 \
-    ./mvnw clean package -DskipTests
+    ./mvnw clean package
 
 # 2. ESTÁGIO FINAL / RUNTIME (Execução enxuta)
 FROM eclipse-temurin:21-jre-jammy AS runtime
