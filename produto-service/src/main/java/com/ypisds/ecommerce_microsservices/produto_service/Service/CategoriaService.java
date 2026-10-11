@@ -1,9 +1,5 @@
 package com.ypisds.ecommerce_microsservices.produto_service.Service;
 
-import java.util.Optional;
-
-import javax.management.RuntimeErrorException;
-
 import org.springframework.stereotype.Service;
 
 import com.github.slugify.Slugify;
