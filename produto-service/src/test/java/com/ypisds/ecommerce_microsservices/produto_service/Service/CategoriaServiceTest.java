@@ -133,8 +133,71 @@ public class CategoriaServiceTest {
         assertEquals("Category's father not found", message);
 
         Mockito.verify(categoriaMapper, times(1)).toEntity(dto);
-        Mockito.verify(categoriaRepository, only()).findById(1L);
+        Mockito.verify(categoriaRepository, times(1)).findById(1L);
         Mockito.verify(categoriaRepository, never()).save(any(Categoria.class));
     }
 
+    @Test
+    void deveRetornarUmaCategoriaPorSlugComSucesso()
+    {
+        String slug = "vendas-1";
+        Categoria categoria = new Categoria(1L, "Vendas", slug, LocalDateTime.now(), LocalDateTime.now(), null);
+        CategoriaPostResponseDTO responseDTO = new CategoriaPostResponseDTO(1L, "Vendas", slug, null);
+
+        Mockito.when(categoriaRepository.findBySlug(slug)).thenReturn(java.util.Optional.of(categoria));
+        Mockito.when(categoriaMapper.toPostResponseDTO(categoria)).thenReturn(responseDTO);
+
+        CategoriaPostResponseDTO response = categoriaService.retornarCategoriaPorSlug(slug);
+
+        assertAll(
+            () -> assertEquals(response.id(), 1L),
+            () -> assertEquals(response.nome(), "Vendas"),
+            () -> assertEquals(response.slug(), slug),
+            () -> assertEquals(response.slugCategoriaPai(), null)
+        );
+
+        Mockito.verify(categoriaRepository, only()).findBySlug(slug);
+        Mockito.verify(categoriaMapper, only()).toPostResponseDTO(categoria);
+    }
+
+    @Test 
+    void deveRetornarCategoriaNaoEncontradaExceptionQuandoSlugDaCategoriaNaoExistir()
+    {
+        String slug = "vendas-1";
+
+        Mockito.when(categoriaRepository.findBySlug(slug)).thenReturn(java.util.Optional.empty());
+
+        String message = assertThrows(com.ypisds.ecommerce_microsservices.produto_service.Exception.Exceptions.CategoriaNaoEncontradaException.class, () -> {
+            categoriaService.retornarCategoriaPorSlug(slug);
+            fail("Deveria ter retornado um erro aqui");
+        }).getMessage();
+
+        assertEquals("Categoria não encontrada", message);
+
+        Mockito.verify(categoriaRepository, only()).findBySlug(slug);
+        Mockito.verify(categoriaMapper, never()).toPostResponseDTO(any(Categoria.class));
+    }
+
+    @Test 
+    void deveRetornarErroQuandoCategoriaHierarquiaJaExiste()
+    {
+        CategoriaPostRequestDTO dto = new CategoriaPostRequestDTO("Vendas", 1L);
+        Categoria categoria = new Categoria(null, "Vendas", null, null, null, null);
+        Categoria categoriaExistente = new Categoria(2L, "Vendas", "vendas-2", LocalDateTime.now(), LocalDateTime.now(), null);
+
+        Mockito.when(categoriaMapper.toEntity(dto)).thenReturn(categoria);
+        Mockito.when(categoriaRepository.findByNomeAndCategoriaPaiId(dto.nome(), dto.idCategoriaPai()))
+            .thenReturn(java.util.Optional.of(categoriaExistente));
+
+        String message = assertThrows(com.ypisds.ecommerce_microsservices.produto_service.Exception.Exceptions.CategoriasComHierarquiaJaExisteException.class, () -> {
+            categoriaService.salvarCategoria(dto);
+            fail("Deveria ter retornado um erro aqui");
+        }).getMessage();
+
+        assertEquals("Já existe uma categoria com o mesmo nome e hierarquia", message);
+
+        Mockito.verify(categoriaMapper, times(1)).toEntity(dto);
+        Mockito.verify(categoriaRepository, only()).findByNomeAndCategoriaPaiId(dto.nome(), dto.idCategoriaPai());
+        Mockito.verify(categoriaRepository, never()).save(any(Categoria.class));
+    }
 }
