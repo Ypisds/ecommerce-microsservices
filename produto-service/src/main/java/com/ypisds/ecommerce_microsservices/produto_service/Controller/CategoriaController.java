@@ -19,6 +19,8 @@ import lombok.AllArgsConstructor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 
@@ -50,6 +52,11 @@ public class CategoriaController {
                 responseCode = "404",
                 description = "Category's father not found",
                 content = @Content
+            ),
+            @ApiResponse (
+                responseCode = "409",
+                description = "Category with the same name and hierarchy already exists",
+                content = @Content
             )
         }
     )
@@ -60,6 +67,37 @@ public class CategoriaController {
         CategoriaPostResponseDTO responseDTO = categoriaService.salvarCategoria(dto);
         return ResponseEntity
                 .status(201)
+                .body(responseDTO);
+    }
+
+    @GetMapping("{slug}")
+    @Operation(summary = "Get a category by slug")
+    @ApiResponses (
+        value = {
+            @ApiResponse(
+                responseCode = "200",
+                description = "Category found",
+                content = {
+                    @Content(
+                        mediaType = "application/json",
+                        schema = @Schema(implementation = CategoriaPostResponseDTO.class)
+                    )
+                }
+            ),
+            @ApiResponse(
+                responseCode = "404",
+                description = "Category not found",
+                content = @Content
+            )
+        }
+    )
+    public ResponseEntity<CategoriaPostResponseDTO> retornarCategoriaPorSlug(@PathVariable String slug)
+    {
+        logger.info("Executing GET /api/categories/{}", slug);
+
+        CategoriaPostResponseDTO responseDTO = categoriaService.retornarCategoriaPorSlug(slug);
+        return ResponseEntity
+                .status(200)
                 .body(responseDTO);
     }
 }
