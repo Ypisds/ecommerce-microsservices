@@ -1,5 +1,10 @@
 package com.ypisds.ecommerce_microsservices.produto_service.Service;
 
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
@@ -7,6 +12,7 @@ import org.springframework.stereotype.Service;
 import com.github.slugify.Slugify;
 import com.ypisds.ecommerce_microsservices.produto_service.Dto.Request.CategoriaPostRequestDTO;
 import com.ypisds.ecommerce_microsservices.produto_service.Dto.Response.CategoriaPostResponseDTO;
+import com.ypisds.ecommerce_microsservices.produto_service.Dto.Response.CategoriaTreeResponseDTO;
 import com.ypisds.ecommerce_microsservices.produto_service.Exception.Exceptions.CategoriaNaoEncontradaException;
 import com.ypisds.ecommerce_microsservices.produto_service.Exception.Exceptions.CategoriasComHierarquiaJaExisteException;
 import com.ypisds.ecommerce_microsservices.produto_service.Exception.Exceptions.FatherCategoryNotFoundException;
@@ -119,5 +125,38 @@ public class CategoriaService {
             .orElseThrow(() -> new CategoriaNaoEncontradaException("Categoria não encontrada"));
 
         categoriaRepository.delete(categoria);
+    }
+
+    @Transactional(readOnly = true)
+    public List<CategoriaTreeResponseDTO> listarCategoriasEmArvore() {
+        logger.info("Executando listarCategoriasEmArvore em CategoriaService");
+
+        List<Categoria> todasCategorias = categoriaRepository.findAll();
+
+        // 1. Cria um mapa indexado pelo ID da categoria
+        Map<Long, CategoriaTreeResponseDTO> mapaCategorias = new HashMap<>();
+        for (Categoria cat : todasCategorias) {
+            mapaCategorias.put(
+                cat.getId(),
+                new CategoriaTreeResponseDTO(cat.getId(), cat.getNome(), cat.getSlug(), new ArrayList<>())
+            );
+        }
+
+        // 2. Conecta cada filho ao seu respectivo pai em memória
+        List<CategoriaTreeResponseDTO> raizes = new ArrayList<>();
+        for (Categoria cat : todasCategorias) {
+            CategoriaTreeResponseDTO dtoAtual = mapaCategorias.get(cat.getId());
+
+            if (cat.getCategoriaPai() == null) {
+                raizes.add(dtoAtual);
+            } else {
+                CategoriaTreeResponseDTO paiDto = mapaCategorias.get(cat.getCategoriaPai().getId());
+                if (paiDto != null) {
+                    paiDto.subcategorias().add(dtoAtual);
+                }
+            }
+        }
+
+        return raizes;
     }
 }

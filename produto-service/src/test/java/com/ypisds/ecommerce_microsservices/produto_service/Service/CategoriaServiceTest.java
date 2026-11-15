@@ -397,4 +397,58 @@ public class CategoriaServiceTest {
         Mockito.verify(categoriaRepository, only()).findBySlug(slug);
         Mockito.verify(categoriaRepository, never()).delete(any(Categoria.class));
     }
+
+    // =========================================================================
+    // TESTES DE LISTAGEM EM ÁRVORE (GET /categories)
+    // =========================================================================
+
+    @Test
+    void deveRetornarCategoriasEmArvoreComMultiplosNiveisComSucesso()
+    {
+        LocalDateTime agora = LocalDateTime.now();
+
+        Categoria raizEletronicos = new Categoria(1L, "Eletrônicos", "eletronicos-1", agora, agora, null);
+        Categoria subNotebooks = new Categoria(2L, "Notebooks", "notebooks-2", agora, agora, raizEletronicos);
+        Categoria netoNotebooksGamer = new Categoria(3L, "Notebooks Gamer", "notebooks-gamer-3", agora, agora, subNotebooks);
+        Categoria raizRoupas = new Categoria(4L, "Roupas", "roupas-4", agora, agora, null);
+
+        Mockito.when(categoriaRepository.findAll())
+            .thenReturn(java.util.List.of(raizEletronicos, subNotebooks, netoNotebooksGamer, raizRoupas));
+
+        java.util.List<com.ypisds.ecommerce_microsservices.produto_service.Dto.Response.CategoriaTreeResponseDTO> resultado =
+            categoriaService.listarCategoriasEmArvore();
+
+        assertAll(
+            // Duas categorias raiz (nível 0)
+            () -> assertEquals(2, resultado.size()),
+            () -> assertEquals("Eletrônicos", resultado.get(0).nome()),
+            () -> assertEquals("Roupas", resultado.get(1).nome()),
+
+            // Subcategoria de Eletrônicos (nível 1)
+            () -> assertEquals(1, resultado.get(0).subcategorias().size()),
+            () -> assertEquals("Notebooks", resultado.get(0).subcategorias().get(0).nome()),
+
+            // Subcategoria de Notebooks (nível 2)
+            () -> assertEquals(1, resultado.get(0).subcategorias().get(0).subcategorias().size()),
+            () -> assertEquals("Notebooks Gamer", resultado.get(0).subcategorias().get(0).subcategorias().get(0).nome()),
+            () -> assertEquals(0, resultado.get(0).subcategorias().get(0).subcategorias().get(0).subcategorias().size()),
+
+            // Roupas sem subcategorias
+            () -> assertEquals(0, resultado.get(1).subcategorias().size())
+        );
+
+        Mockito.verify(categoriaRepository, only()).findAll();
+    }
+
+    @Test
+    void deveRetornarListaVaziaQuandoNaoHouverCategoriasCadastradas()
+    {
+        Mockito.when(categoriaRepository.findAll()).thenReturn(java.util.List.of());
+
+        java.util.List<com.ypisds.ecommerce_microsservices.produto_service.Dto.Response.CategoriaTreeResponseDTO> resultado =
+            categoriaService.listarCategoriasEmArvore();
+
+        assertEquals(0, resultado.size());
+        Mockito.verify(categoriaRepository, only()).findAll();
+    }
 }

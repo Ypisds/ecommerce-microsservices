@@ -236,4 +236,47 @@ public class CategoriaControllerTest {
         .andExpect(status().isNotFound())
         .andExpect(content().string("Categoria não encontrada"));
     }
+
+    // =========================================================================
+    // TESTES DE LISTAGEM EM ÁRVORE (GET /categories)
+    // =========================================================================
+
+    @Test
+    void deveListarCategoriasEmArvoreComSucesso() throws Exception {
+        var neto = new com.ypisds.ecommerce_microsservices.produto_service.Dto.Response.CategoriaTreeResponseDTO(
+            3L, "Notebooks Gamer", "notebooks-gamer-3", java.util.List.of()
+        );
+        var filho = new com.ypisds.ecommerce_microsservices.produto_service.Dto.Response.CategoriaTreeResponseDTO(
+            2L, "Notebooks", "notebooks-2", java.util.List.of(neto)
+        );
+        var raiz = new com.ypisds.ecommerce_microsservices.produto_service.Dto.Response.CategoriaTreeResponseDTO(
+            1L, "Eletrônicos", "eletronicos-1", java.util.List.of(filho)
+        );
+
+        Mockito.when(categoriaService.listarCategoriasEmArvore()).thenReturn(java.util.List.of(raiz));
+
+        mockMvc.perform(get("/categories")
+            .accept(MediaType.APPLICATION_JSON)
+            )
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.length()").value(1))
+        .andExpect(jsonPath("$[0].id").value(1L))
+        .andExpect(jsonPath("$[0].nome").value("Eletrônicos"))
+        .andExpect(jsonPath("$[0].slug").value("eletronicos-1"))
+        .andExpect(jsonPath("$[0].subcategorias[0].id").value(2L))
+        .andExpect(jsonPath("$[0].subcategorias[0].nome").value("Notebooks"))
+        .andExpect(jsonPath("$[0].subcategorias[0].subcategorias[0].id").value(3L))
+        .andExpect(jsonPath("$[0].subcategorias[0].subcategorias[0].nome").value("Notebooks Gamer"));
+    }
+
+    @Test
+    void deveRetornarListaVaziaAoListarCategoriasQuandoNaoHouverRegistros() throws Exception {
+        Mockito.when(categoriaService.listarCategoriasEmArvore()).thenReturn(java.util.List.of());
+
+        mockMvc.perform(get("/categories")
+            .accept(MediaType.APPLICATION_JSON)
+            )
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.length()").value(0));
+    }
 }

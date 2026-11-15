@@ -5,9 +5,11 @@ import org.springframework.web.bind.annotation.RestController;
 
 import com.ypisds.ecommerce_microsservices.produto_service.Dto.Request.CategoriaPostRequestDTO;
 import com.ypisds.ecommerce_microsservices.produto_service.Dto.Response.CategoriaPostResponseDTO;
+import com.ypisds.ecommerce_microsservices.produto_service.Dto.Response.CategoriaTreeResponseDTO;
 import com.ypisds.ecommerce_microsservices.produto_service.Service.CategoriaService;
 
 import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.media.ArraySchema;
 import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
@@ -15,6 +17,8 @@ import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.AllArgsConstructor;
+
+import java.util.List;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -171,5 +175,31 @@ public class CategoriaController {
         return ResponseEntity
                 .status(204)
                 .build();
+    }
+
+    @GetMapping("")
+    @Operation(summary = "Get all categories in a hierarchical tree structure")
+    @ApiResponses(
+        value = {
+            @ApiResponse(
+                responseCode = "200",
+                description = "Categories tree retrieved successfully",
+                content = {
+                    @Content(
+                        mediaType = "application/json",
+                        array = @ArraySchema(schema = @Schema(implementation = CategoriaTreeResponseDTO.class))
+                    )
+                }
+            )
+        }
+    )
+    public ResponseEntity<List<CategoriaTreeResponseDTO>> listarCategoriasEmArvore()
+    {
+        logger.info("Executing GET /api/categories");
+
+        List<CategoriaTreeResponseDTO> responseDTO = categoriaService.listarCategoriasEmArvore();
+        return ResponseEntity
+                .status(200)
+                .body(responseDTO);
     }
 }
