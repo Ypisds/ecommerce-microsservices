@@ -200,4 +200,201 @@ public class CategoriaServiceTest {
         Mockito.verify(categoriaRepository, only()).findByNomeAndCategoriaPaiId(dto.nome(), dto.idCategoriaPai());
         Mockito.verify(categoriaRepository, never()).save(any(Categoria.class));
     }
+
+    @Test
+    void deveAtualizarUmaCategoriaComSucessoAlterandoNomeECategoriaPai()
+    {
+        String slugAntigo = "vendas-1";
+        String novoSlug = "promocoes-1";
+        CategoriaPostRequestDTO dto = new CategoriaPostRequestDTO("Promoções", 2L);
+
+        Categoria categoriaExistente = new Categoria(1L, "Vendas", slugAntigo, LocalDateTime.now(), LocalDateTime.now(), null);
+        Categoria novaCategoriaPai = new Categoria(2L, "Eletrônicos", "eletronicos-2", LocalDateTime.now(), LocalDateTime.now(), null);
+        Categoria categoriaAtualizada = new Categoria(1L, "Promoções", novoSlug, LocalDateTime.now(), LocalDateTime.now(), novaCategoriaPai);
+        CategoriaPostResponseDTO responseDTO = new CategoriaPostResponseDTO(1L, "Promoções", novoSlug, "eletronicos-2");
+
+        Mockito.when(categoriaRepository.findBySlug(slugAntigo)).thenReturn(java.util.Optional.of(categoriaExistente));
+        Mockito.when(categoriaRepository.findByNomeAndCategoriaPaiId(dto.nome(), dto.idCategoriaPai())).thenReturn(java.util.Optional.empty());
+        Mockito.when(categoriaRepository.findById(2L)).thenReturn(java.util.Optional.of(novaCategoriaPai));
+        Mockito.when(slugify.slugify("Promoções 1")).thenReturn(novoSlug);
+        Mockito.when(categoriaRepository.save(categoriaExistente)).thenReturn(categoriaAtualizada);
+        Mockito.when(categoriaMapper.toPostResponseDTO(categoriaAtualizada)).thenReturn(responseDTO);
+
+        CategoriaPostResponseDTO response = categoriaService.atualizarCategoria(slugAntigo, dto);
+
+        assertAll(
+            () -> assertEquals(1L, response.id()),
+            () -> assertEquals("Promoções", response.nome()),
+            () -> assertEquals(novoSlug, response.slug()),
+            () -> assertEquals("eletronicos-2", response.slugCategoriaPai())
+        );
+
+        Mockito.verify(categoriaRepository, times(1)).findBySlug(slugAntigo);
+        Mockito.verify(categoriaRepository, times(1)).findByNomeAndCategoriaPaiId(dto.nome(), dto.idCategoriaPai());
+        Mockito.verify(categoriaRepository, times(1)).findById(2L);
+        Mockito.verify(slugify, times(1)).slugify("Promoções 1");
+        Mockito.verify(categoriaRepository, times(1)).save(categoriaExistente);
+        Mockito.verify(categoriaMapper, times(1)).toPostResponseDTO(categoriaAtualizada);
+    }
+
+    @Test
+    void deveAtualizarUmaCategoriaMantendoOMesmoNomeSemRecalcularSlugERemovendoCategoriaPai()
+    {
+        String slugAtual = "vendas-1";
+        CategoriaPostRequestDTO dto = new CategoriaPostRequestDTO("Vendas", null);
+
+        Categoria categoriaPaiAntiga = new Categoria(2L, "Eletrônicos", "eletronicos-2", LocalDateTime.now(), LocalDateTime.now(), null);
+        Categoria categoriaExistente = new Categoria(1L, "Vendas", slugAtual, LocalDateTime.now(), LocalDateTime.now(), categoriaPaiAntiga);
+        CategoriaPostResponseDTO responseDTO = new CategoriaPostResponseDTO(1L, "Vendas", slugAtual, null);
+
+        Mockito.when(categoriaRepository.findBySlug(slugAtual)).thenReturn(java.util.Optional.of(categoriaExistente));
+        // Simula o repositório retornando a própria categoria na verificação de hierarquia
+        Mockito.when(categoriaRepository.findByNomeAndCategoriaPaiId("Vendas", null)).thenReturn(java.util.Optional.of(categoriaExistente));
+        Mockito.when(categoriaRepository.save(categoriaExistente)).thenReturn(categoriaExistente);
+        Mockito.when(categoriaMapper.toPostResponseDTO(categoriaExistente)).thenReturn(responseDTO);
+
+        CategoriaPostResponseDTO response = categoriaService.atualizarCategoria(slugAtual, dto);
+
+        assertAll(
+            () -> assertEquals(1L, response.id()),
+            () -> assertEquals("Vendas", response.nome()),
+            () -> assertEquals(slugAtual, response.slug()),
+            () -> assertEquals(null, response.slugCategoriaPai()),
+            () -> assertEquals(null, categoriaExistente.getCategoriaPai())
+        );
+
+        Mockito.verify(categoriaRepository, times(1)).findBySlug(slugAtual);
+        Mockito.verify(categoriaRepository, times(1)).findByNomeAndCategoriaPaiId("Vendas", null);
+        Mockito.verify(categoriaRepository, never()).findById(any());
+        Mockito.verify(slugify, never()).slugify(any());
+        Mockito.verify(categoriaRepository, times(1)).save(categoriaExistente);
+        Mockito.verify(categoriaMapper, times(1)).toPostResponseDTO(categoriaExistente);
+    }
+
+    @Test
+    void deveRetornarErroAoAtualizarQuandoCategoriaNaoEncontrada()
+    {
+        String slug = "inexistente-99";
+        CategoriaPostRequestDTO dto = new CategoriaPostRequestDTO("Vendas", null);
+
+        Mockito.when(categoriaRepository.findBySlug(slug)).thenReturn(java.util.Optional.empty());
+
+        String message = assertThrows(com.ypisds.ecommerce_microsservices.produto_service.Exception.Exceptions.CategoriaNaoEncontradaException.class, () -> {
+            categoriaService.atualizarCategoria(slug, dto);
+            fail("Deveria ter retornado um erro aqui");
+        }).getMessage();
+
+        assertEquals("Categoria não encontrada", message);
+
+        Mockito.verify(categoriaRepository, only()).findBySlug(slug);
+        Mockito.verify(categoriaRepository, never()).save(any(Categoria.class));
+        Mockito.verify(categoriaMapper, never()).toPostResponseDTO(any(Categoria.class));
+    }
+
+    @Test
+    void deveRetornarErroAoAtualizarQuandoOutraCategoriaComMesmaHierarquiaJaExiste()
+    {
+        String slug = "vendas-1";
+        CategoriaPostRequestDTO dto = new CategoriaPostRequestDTO("Eletrônicos", 2L);
+
+        Categoria categoriaAtual = new Categoria(1L, "Vendas", slug, LocalDateTime.now(), LocalDateTime.now(), null);
+        Categoria outraCategoriaConflitante = new Categoria(3L, "Eletrônicos", "eletronicos-3", LocalDateTime.now(), LocalDateTime.now(), null);
+
+        Mockito.when(categoriaRepository.findBySlug(slug)).thenReturn(java.util.Optional.of(categoriaAtual));
+        Mockito.when(categoriaRepository.findByNomeAndCategoriaPaiId(dto.nome(), dto.idCategoriaPai()))
+            .thenReturn(java.util.Optional.of(outraCategoriaConflitante));
+
+        String message = assertThrows(com.ypisds.ecommerce_microsservices.produto_service.Exception.Exceptions.CategoriasComHierarquiaJaExisteException.class, () -> {
+            categoriaService.atualizarCategoria(slug, dto);
+            fail("Deveria ter retornado um erro aqui");
+        }).getMessage();
+
+        assertEquals("Já existe uma categoria com o mesmo nome e hierarquia", message);
+
+        Mockito.verify(categoriaRepository, times(1)).findBySlug(slug);
+        Mockito.verify(categoriaRepository, times(1)).findByNomeAndCategoriaPaiId(dto.nome(), dto.idCategoriaPai());
+        Mockito.verify(categoriaRepository, never()).findById(any());
+        Mockito.verify(categoriaRepository, never()).save(any(Categoria.class));
+    }
+
+    @Test
+    void deveRetornarErroAoAtualizarQuandoCategoriaForPaiDeSiMesma()
+    {
+        String slug = "vendas-1";
+        CategoriaPostRequestDTO dto = new CategoriaPostRequestDTO("Vendas", 1L);
+
+        Categoria categoriaAtual = new Categoria(1L, "Vendas", slug, LocalDateTime.now(), LocalDateTime.now(), null);
+
+        Mockito.when(categoriaRepository.findBySlug(slug)).thenReturn(java.util.Optional.of(categoriaAtual));
+        Mockito.when(categoriaRepository.findByNomeAndCategoriaPaiId(dto.nome(), dto.idCategoriaPai())).thenReturn(java.util.Optional.empty());
+
+        String message = assertThrows(IllegalArgumentException.class, () -> {
+            categoriaService.atualizarCategoria(slug, dto);
+            fail("Deveria ter retornado um erro aqui");
+        }).getMessage();
+
+        assertEquals("Uma categoria não pode ser pai dela mesma", message);
+
+        Mockito.verify(categoriaRepository, times(1)).findBySlug(slug);
+        Mockito.verify(categoriaRepository, times(1)).findByNomeAndCategoriaPaiId(dto.nome(), dto.idCategoriaPai());
+        Mockito.verify(categoriaRepository, never()).findById(any());
+        Mockito.verify(categoriaRepository, never()).save(any(Categoria.class));
+    }
+
+    @Test
+    void deveRetornarErroAoAtualizarQuandoCategoriaPaiNaoForEncontrada()
+    {
+        String slug = "vendas-1";
+        CategoriaPostRequestDTO dto = new CategoriaPostRequestDTO("Vendas", 99L);
+
+        Categoria categoriaAtual = new Categoria(1L, "Vendas", slug, LocalDateTime.now(), LocalDateTime.now(), null);
+
+        Mockito.when(categoriaRepository.findBySlug(slug)).thenReturn(java.util.Optional.of(categoriaAtual));
+        Mockito.when(categoriaRepository.findByNomeAndCategoriaPaiId(dto.nome(), dto.idCategoriaPai())).thenReturn(java.util.Optional.empty());
+        Mockito.when(categoriaRepository.findById(99L)).thenReturn(java.util.Optional.empty());
+
+        String message = assertThrows(FatherCategoryNotFoundException.class, () -> {
+            categoriaService.atualizarCategoria(slug, dto);
+            fail("Deveria ter retornado um erro aqui");
+        }).getMessage();
+
+        assertEquals("Category's father not found", message);
+
+        Mockito.verify(categoriaRepository, times(1)).findBySlug(slug);
+        Mockito.verify(categoriaRepository, times(1)).findByNomeAndCategoriaPaiId(dto.nome(), dto.idCategoriaPai());
+        Mockito.verify(categoriaRepository, times(1)).findById(99L);
+        Mockito.verify(categoriaRepository, never()).save(any(Categoria.class));
+    }
+
+    @Test
+    void deveDeletarUmaCategoriaComSucesso()
+    {
+        String slug = "vendas-1";
+        Categoria categoria = new Categoria(1L, "Vendas", slug, LocalDateTime.now(), LocalDateTime.now(), null);
+
+        Mockito.when(categoriaRepository.findBySlug(slug)).thenReturn(java.util.Optional.of(categoria));
+
+        categoriaService.deletarCategoria(slug);
+
+        Mockito.verify(categoriaRepository, times(1)).findBySlug(slug);
+        Mockito.verify(categoriaRepository, times(1)).delete(categoria);
+    }
+
+    @Test
+    void deveRetornarErroAoDeletarQuandoCategoriaNaoEncontrada()
+    {
+        String slug = "inexistente-99";
+
+        Mockito.when(categoriaRepository.findBySlug(slug)).thenReturn(java.util.Optional.empty());
+
+        String message = assertThrows(com.ypisds.ecommerce_microsservices.produto_service.Exception.Exceptions.CategoriaNaoEncontradaException.class, () -> {
+            categoriaService.deletarCategoria(slug);
+            fail("Deveria ter retornado um erro aqui");
+        }).getMessage();
+
+        assertEquals("Categoria não encontrada", message);
+
+        Mockito.verify(categoriaRepository, only()).findBySlug(slug);
+        Mockito.verify(categoriaRepository, never()).delete(any(Categoria.class));
+    }
 }

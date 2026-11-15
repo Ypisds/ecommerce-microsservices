@@ -13,8 +13,8 @@ import com.ypisds.ecommerce_microsservices.produto_service.Exception.Exceptions.
 import com.ypisds.ecommerce_microsservices.produto_service.Mapper.CategoriaMapper;
 import com.ypisds.ecommerce_microsservices.produto_service.Model.Categoria;
 import com.ypisds.ecommerce_microsservices.produto_service.Repository.CategoriaRepository;
+import org.springframework.transaction.annotation.Transactional;
 
-import jakarta.transaction.Transactional;
 import lombok.AllArgsConstructor;
 
 @Service
@@ -67,5 +67,57 @@ public class CategoriaService {
             .orElseThrow( () -> new CategoriaNaoEncontradaException("Categoria não encontrada"));
           
         return categoriaMapper.toPostResponseDTO(categoria);
+    }
+
+    @Transactional
+    public CategoriaPostResponseDTO atualizarCategoria(String slug, CategoriaPostRequestDTO dto) {
+        logger.info("Executando atualizarCategoria para o slug: {}", slug);
+
+        Categoria categoria = categoriaRepository
+            .findBySlug(slug)
+            .orElseThrow(() -> new CategoriaNaoEncontradaException("Categoria não encontrada"));
+
+        // Valida unicidade na hierarquia, ignorando a própria categoria que está sendo editada
+        categoriaRepository.findByNomeAndCategoriaPaiId(dto.nome(), dto.idCategoriaPai())
+            .ifPresent(c -> {
+                if (!c.getId().equals(categoria.getId())) {
+                    throw new CategoriasComHierarquiaJaExisteException("Já existe uma categoria com o mesmo nome e hierarquia");
+                }
+            });
+
+        // Atualiza ou remove a categoria pai
+        if (dto.idCategoriaPai() != null) {
+            if (dto.idCategoriaPai().equals(categoria.getId())) {
+                throw new IllegalArgumentException("Uma categoria não pode ser pai dela mesma");
+            }
+
+            Categoria categoriaPai = categoriaRepository
+                .findById(dto.idCategoriaPai())
+                .orElseThrow(() -> new FatherCategoryNotFoundException("Category's father not found"));
+            categoria.setCategoriaPai(categoriaPai);
+        } else {
+            categoria.setCategoriaPai(null);
+        }
+
+        // Atualiza o nome e recalcula o slug seguindo o padrão (nome + id) caso o nome tenha mudado
+        if (!categoria.getNome().equals(dto.nome())) {
+            categoria.setNome(dto.nome());
+            categoria.setSlug(slugify.slugify(dto.nome() + " " + categoria.getId()));
+        }
+
+        Categoria categoriaSalva = categoriaRepository.save(categoria);
+
+        return categoriaMapper.toPostResponseDTO(categoriaSalva);
+    }
+
+    @Transactional
+    public void deletarCategoria(String slug) {
+        logger.info("Executando deletarCategoria para o slug: {}", slug);
+
+        Categoria categoria = categoriaRepository
+            .findBySlug(slug)
+            .orElseThrow(() -> new CategoriaNaoEncontradaException("Categoria não encontrada"));
+
+        categoriaRepository.delete(categoria);
     }
 }
