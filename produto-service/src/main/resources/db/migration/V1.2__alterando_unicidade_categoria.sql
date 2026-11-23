@@ -1,0 +1,1 @@
+ALTER TABLE categoria ADD CONSTRAINT UK_CATEGORIA_1 UNIQUE (nm_categoria, id_categoria_pai);
