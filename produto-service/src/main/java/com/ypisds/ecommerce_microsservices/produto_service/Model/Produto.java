@@ -2,6 +2,8 @@ package com.ypisds.ecommerce_microsservices.produto_service.Model;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.List;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
@@ -11,6 +13,7 @@ import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
+import jakarta.persistence.OneToMany;
 import jakarta.persistence.PrePersist;
 import jakarta.persistence.PreUpdate;
 import jakarta.persistence.Table;
@@ -62,6 +65,9 @@ public class Produto {
 
     @Column(name = "DT_DATA_ULTIMA_ALTERACAO", nullable = false)
     private LocalDateTime dhUltimaAlteracao;
+
+    @OneToMany(mappedBy = "produto", targetEntity=ProdutoFoto.class)
+    private List<ProdutoFoto> fotos = new ArrayList<>();
 
     @PrePersist
     protected void onCreate()

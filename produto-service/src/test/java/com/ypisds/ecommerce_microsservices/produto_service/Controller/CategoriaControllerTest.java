@@ -1,5 +1,7 @@
 package com.ypisds.ecommerce_microsservices.produto_service.Controller;
 
+import java.util.List;
+
 import org.junit.jupiter.api.Test;
 import org.mockito.Mockito;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -9,11 +11,19 @@ import org.springframework.http.MediaType;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import com.ypisds.ecommerce_microsservices.produto_service.Dto.Request.CategoriaPostRequestDTO;
 import com.ypisds.ecommerce_microsservices.produto_service.Dto.Response.CategoriaPostResponseDTO;
+import com.ypisds.ecommerce_microsservices.produto_service.Dto.Response.CategoriaTreeResponseDTO;
+import com.ypisds.ecommerce_microsservices.produto_service.Exception.Exceptions.CategoriaNaoEncontradaException;
+import com.ypisds.ecommerce_microsservices.produto_service.Exception.Exceptions.CategoriasComHierarquiaJaExisteException;
 import com.ypisds.ecommerce_microsservices.produto_service.Exception.Exceptions.FatherCategoryNotFoundException;
 import com.ypisds.ecommerce_microsservices.produto_service.Service.CategoriaService;
 
@@ -24,7 +34,6 @@ import tools.jackson.databind.json.JsonMapper;
 @ActiveProfiles("test")
 public class CategoriaControllerTest {
 
-    
     @Autowired
     private MockMvc mockMvc;
 
@@ -33,6 +42,10 @@ public class CategoriaControllerTest {
 
     @MockitoBean
     private CategoriaService categoriaService;
+
+    // =========================================================================
+    // TESTES DE CRIAÇÃO (POST /categories)
+    // =========================================================================
 
     @Test
     void deveCriarUmaCategoriaSemCategoriaPaiComSucesso() throws Exception {
@@ -45,7 +58,7 @@ public class CategoriaControllerTest {
         mockMvc.perform(post("/categories")
             .contentType(MediaType.APPLICATION_JSON)
             .content(objectMapper.writeValueAsString(dto))
-            )
+        )
         .andExpect(status().isCreated())
         .andExpect(jsonPath("$.id").value(1L))
         .andExpect(jsonPath("$.nome").value("Vendas"))
@@ -64,7 +77,7 @@ public class CategoriaControllerTest {
         mockMvc.perform(post("/categories")
             .contentType(MediaType.APPLICATION_JSON)
             .content(objectMapper.writeValueAsString(dto))
-            )
+        )
         .andExpect(status().isCreated())
         .andExpect(jsonPath("$.id").value(2L))
         .andExpect(jsonPath("$.nome").value("Vendas"))
@@ -72,18 +85,23 @@ public class CategoriaControllerTest {
         .andExpect(jsonPath("$.slugCategoriaPai").value("vendas-1"));
     }
 
-    @Test 
+    @Test
     void deveRetornarErroAoTentarCriarUmaCategoriaComCategoriaPaiInexistente() throws Exception {
         CategoriaPostRequestDTO dto = new CategoriaPostRequestDTO("Vendas", 1L);
 
-        Mockito.when(categoriaService.salvarCategoria(dto)).thenThrow(new FatherCategoryNotFoundException("Category's father not found"));
+        Mockito.when(categoriaService.salvarCategoria(dto))
+            .thenThrow(new FatherCategoryNotFoundException("Category's father not found"));
 
         mockMvc.perform(post("/categories")
             .contentType(MediaType.APPLICATION_JSON)
             .content(objectMapper.writeValueAsString(dto))
-            )
+        )
         .andExpect(status().isNotFound())
-        .andExpect(content().string("Category's father not found"));
+        .andExpect(jsonPath("$.status").value(404))
+        .andExpect(jsonPath("$.title").value("Recurso não encontrado"))
+        .andExpect(jsonPath("$.detail").value("Category's father not found"))
+        .andExpect(jsonPath("$.type").value("https://api.ecommerce.com/errors/not-found"))
+        .andExpect(jsonPath("$.timestamp").exists());
     }
 
     // =========================================================================
@@ -100,7 +118,7 @@ public class CategoriaControllerTest {
 
         mockMvc.perform(get("/categories/{slug}", slug)
             .accept(MediaType.APPLICATION_JSON)
-            )
+        )
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.id").value(1L))
         .andExpect(jsonPath("$.nome").value("Vendas"))
@@ -113,13 +131,17 @@ public class CategoriaControllerTest {
         String slug = "inexistente-99";
 
         Mockito.when(categoriaService.retornarCategoriaPorSlug(slug))
-            .thenThrow(new com.ypisds.ecommerce_microsservices.produto_service.Exception.Exceptions.CategoriaNaoEncontradaException("Categoria não encontrada"));
+            .thenThrow(new CategoriaNaoEncontradaException("Categoria não encontrada"));
 
         mockMvc.perform(get("/categories/{slug}", slug)
             .accept(MediaType.APPLICATION_JSON)
-            )
+        )
         .andExpect(status().isNotFound())
-        .andExpect(content().string("Categoria não encontrada"));
+        .andExpect(jsonPath("$.status").value(404))
+        .andExpect(jsonPath("$.title").value("Recurso não encontrado"))
+        .andExpect(jsonPath("$.detail").value("Categoria não encontrada"))
+        .andExpect(jsonPath("$.type").value("https://api.ecommerce.com/errors/not-found"))
+        .andExpect(jsonPath("$.timestamp").exists());
     }
 
     // =========================================================================
@@ -138,7 +160,7 @@ public class CategoriaControllerTest {
         mockMvc.perform(put("/categories/{slug}", slugAntigo)
             .contentType(MediaType.APPLICATION_JSON)
             .content(objectMapper.writeValueAsString(dto))
-            )
+        )
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.id").value(1L))
         .andExpect(jsonPath("$.nome").value("Promoções"))
@@ -152,14 +174,18 @@ public class CategoriaControllerTest {
         CategoriaPostRequestDTO dto = new CategoriaPostRequestDTO("Promoções", null);
 
         Mockito.when(categoriaService.atualizarCategoria(slug, dto))
-            .thenThrow(new com.ypisds.ecommerce_microsservices.produto_service.Exception.Exceptions.CategoriaNaoEncontradaException("Categoria não encontrada"));
+            .thenThrow(new CategoriaNaoEncontradaException("Categoria não encontrada"));
 
         mockMvc.perform(put("/categories/{slug}", slug)
             .contentType(MediaType.APPLICATION_JSON)
             .content(objectMapper.writeValueAsString(dto))
-            )
+        )
         .andExpect(status().isNotFound())
-        .andExpect(content().string("Categoria não encontrada"));
+        .andExpect(jsonPath("$.status").value(404))
+        .andExpect(jsonPath("$.title").value("Recurso não encontrado"))
+        .andExpect(jsonPath("$.detail").value("Categoria não encontrada"))
+        .andExpect(jsonPath("$.type").value("https://api.ecommerce.com/errors/not-found"))
+        .andExpect(jsonPath("$.timestamp").exists());
     }
 
     @Test
@@ -173,9 +199,13 @@ public class CategoriaControllerTest {
         mockMvc.perform(put("/categories/{slug}", slug)
             .contentType(MediaType.APPLICATION_JSON)
             .content(objectMapper.writeValueAsString(dto))
-            )
+        )
         .andExpect(status().isNotFound())
-        .andExpect(content().string("Category's father not found"));
+        .andExpect(jsonPath("$.status").value(404))
+        .andExpect(jsonPath("$.title").value("Recurso não encontrado"))
+        .andExpect(jsonPath("$.detail").value("Category's father not found"))
+        .andExpect(jsonPath("$.type").value("https://api.ecommerce.com/errors/not-found"))
+        .andExpect(jsonPath("$.timestamp").exists());
     }
 
     @Test
@@ -184,14 +214,18 @@ public class CategoriaControllerTest {
         CategoriaPostRequestDTO dto = new CategoriaPostRequestDTO("Eletrônicos", 2L);
 
         Mockito.when(categoriaService.atualizarCategoria(slug, dto))
-            .thenThrow(new com.ypisds.ecommerce_microsservices.produto_service.Exception.Exceptions.CategoriasComHierarquiaJaExisteException("Já existe uma categoria com o mesmo nome e hierarquia"));
+            .thenThrow(new CategoriasComHierarquiaJaExisteException("Já existe uma categoria com o mesmo nome e hierarquia"));
 
         mockMvc.perform(put("/categories/{slug}", slug)
             .contentType(MediaType.APPLICATION_JSON)
             .content(objectMapper.writeValueAsString(dto))
-            )
+        )
         .andExpect(status().isConflict())
-        .andExpect(content().string("Já existe uma categoria com o mesmo nome e hierarquia"));
+        .andExpect(jsonPath("$.status").value(409))
+        .andExpect(jsonPath("$.title").value("Conflito de hierarquia de categoria"))
+        .andExpect(jsonPath("$.detail").value("Já existe uma categoria com o mesmo nome e hierarquia"))
+        .andExpect(jsonPath("$.type").value("https://api.ecommerce.com/errors/conflict"))
+        .andExpect(jsonPath("$.timestamp").exists());
     }
 
     @Test
@@ -202,7 +236,7 @@ public class CategoriaControllerTest {
         mockMvc.perform(put("/categories/{slug}", slug)
             .contentType(MediaType.APPLICATION_JSON)
             .content(objectMapper.writeValueAsString(dtoInvalido))
-            )
+        )
         .andExpect(status().isBadRequest());
 
         Mockito.verifyNoInteractions(categoriaService);
@@ -229,12 +263,16 @@ public class CategoriaControllerTest {
     void deveRetornarErroAoTentarDeletarCategoriaInexistente() throws Exception {
         String slug = "inexistente-99";
 
-        Mockito.doThrow(new com.ypisds.ecommerce_microsservices.produto_service.Exception.Exceptions.CategoriaNaoEncontradaException("Categoria não encontrada"))
+        Mockito.doThrow(new CategoriaNaoEncontradaException("Categoria não encontrada"))
             .when(categoriaService).deletarCategoria(slug);
 
         mockMvc.perform(delete("/categories/{slug}", slug))
         .andExpect(status().isNotFound())
-        .andExpect(content().string("Categoria não encontrada"));
+        .andExpect(jsonPath("$.status").value(404))
+        .andExpect(jsonPath("$.title").value("Recurso não encontrado"))
+        .andExpect(jsonPath("$.detail").value("Categoria não encontrada"))
+        .andExpect(jsonPath("$.type").value("https://api.ecommerce.com/errors/not-found"))
+        .andExpect(jsonPath("$.timestamp").exists());
     }
 
     // =========================================================================
@@ -243,21 +281,21 @@ public class CategoriaControllerTest {
 
     @Test
     void deveListarCategoriasEmArvoreComSucesso() throws Exception {
-        var neto = new com.ypisds.ecommerce_microsservices.produto_service.Dto.Response.CategoriaTreeResponseDTO(
-            3L, "Notebooks Gamer", "notebooks-gamer-3", java.util.List.of()
+        var neto = new CategoriaTreeResponseDTO(
+            3L, "Notebooks Gamer", "notebooks-gamer-3", List.of()
         );
-        var filho = new com.ypisds.ecommerce_microsservices.produto_service.Dto.Response.CategoriaTreeResponseDTO(
-            2L, "Notebooks", "notebooks-2", java.util.List.of(neto)
+        var filho = new CategoriaTreeResponseDTO(
+            2L, "Notebooks", "notebooks-2", List.of(neto)
         );
-        var raiz = new com.ypisds.ecommerce_microsservices.produto_service.Dto.Response.CategoriaTreeResponseDTO(
-            1L, "Eletrônicos", "eletronicos-1", java.util.List.of(filho)
+        var raiz = new CategoriaTreeResponseDTO(
+            1L, "Eletrônicos", "eletronicos-1", List.of(filho)
         );
 
-        Mockito.when(categoriaService.listarCategoriasEmArvore()).thenReturn(java.util.List.of(raiz));
+        Mockito.when(categoriaService.listarCategoriasEmArvore()).thenReturn(List.of(raiz));
 
         mockMvc.perform(get("/categories")
             .accept(MediaType.APPLICATION_JSON)
-            )
+        )
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.length()").value(1))
         .andExpect(jsonPath("$[0].id").value(1L))
@@ -271,11 +309,11 @@ public class CategoriaControllerTest {
 
     @Test
     void deveRetornarListaVaziaAoListarCategoriasQuandoNaoHouverRegistros() throws Exception {
-        Mockito.when(categoriaService.listarCategoriasEmArvore()).thenReturn(java.util.List.of());
+        Mockito.when(categoriaService.listarCategoriasEmArvore()).thenReturn(List.of());
 
         mockMvc.perform(get("/categories")
             .accept(MediaType.APPLICATION_JSON)
-            )
+        )
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.length()").value(0));
     }

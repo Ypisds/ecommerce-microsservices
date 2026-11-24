@@ -38,7 +38,7 @@ public class ProdutoFoto {
     @Column (name = "IN_PRINCIPAL", nullable = false)
     private boolean principal = false;
     
-    @ManyToOne
+    @ManyToOne(targetEntity = Produto.class)
     @JoinColumn (name = "ID_PRODUTO", nullable = false)
     private Produto produto;
 
