@@ -11,6 +11,9 @@ services:
       - SPRING_DATASOURCE_URL=jdbc:postgresql://produto_db:5432/produto_db
       - SPRING_DATASOURCE_USERNAME=postgres
       - SPRING_DATASOURCE_PASSWORD=${PRODUTO_DB_PASSWORD}
+      - MINIO_URL=http://minio:9000
+      - MINIO_ACCESS_KEY=${MINIO_ROOT_USER}
+      - MINIO_SECRET_KEY=${MINIO_ROOT_PASSWORD}
 
   produto_db:
     image: postgres:18
@@ -27,6 +30,25 @@ services:
       retries: 5
     expose:
       - 5432
+  
+  minio:
+    image: cgr.dev/chainguard/minio:latest
+    container_name: minio_storage
+    restart: always
+    command: server /data --console-address ":9001"
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    environment:
+      - MINIO_ROOT_USER=${MINIO_ROOT_USER}
+      - MINIO_ROOT_PASSWORD=${MINIO_ROOT_PASSWORD}
+    volumes:
+      - minio_data:/data
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
   
   frontend:
     build:
@@ -53,3 +75,4 @@ services:
 
 volumes:
   produto_db_data:
+  minio_data:
