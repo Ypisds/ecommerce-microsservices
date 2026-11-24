@@ -21,3 +21,7 @@ springdoc:
   api-docs:
     path: /v3/api-docs
 
+minio:
+  endpoint: ${MINIO_URL:http://localhost:9000}
+  accessKey: ${MINIO_ACCESS_KEY}
+  secretKey: ${MINIO_SECRET_KEY}
