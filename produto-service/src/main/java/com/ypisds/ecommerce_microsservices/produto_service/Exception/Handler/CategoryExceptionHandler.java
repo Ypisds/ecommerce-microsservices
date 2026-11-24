@@ -8,12 +8,11 @@ import org.springframework.http.ProblemDetail;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 
-import com.ypisds.ecommerce_microsservices.produto_service.Controller.CategoriaController;
 import com.ypisds.ecommerce_microsservices.produto_service.Exception.Exceptions.CategoriaNaoEncontradaException;
 import com.ypisds.ecommerce_microsservices.produto_service.Exception.Exceptions.CategoriasComHierarquiaJaExisteException;
 import com.ypisds.ecommerce_microsservices.produto_service.Exception.Exceptions.FatherCategoryNotFoundException;
 
-@RestControllerAdvice(assignableTypes = CategoriaController.class)
+@RestControllerAdvice
 public class CategoryExceptionHandler {
 
     @ExceptionHandler({
