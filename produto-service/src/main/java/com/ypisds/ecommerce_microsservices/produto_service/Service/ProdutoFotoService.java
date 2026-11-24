@@ -38,7 +38,7 @@ public class ProdutoFotoService {
         }
     }
 
-    @Transactional 
+    @Transactional(rollbackFor = IOException.class)
     public ProdutoFoto uploadFoto(MultipartFile file, Produto produto) throws IOException {
         String url = minIOService.uploadFile(bucketName, file);
         boolean principal = !produtoFotoRepository.existsByPrincipalAndProdutoId(true, produto.getId());

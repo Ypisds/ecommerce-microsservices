@@ -50,7 +50,7 @@ public class Produto {
     private BigDecimal preco;
 
     @Column(name = "IN_ATIVO", nullable = false)
-    private boolean isAtivo = true;
+    private boolean ativo = true;
 
     @ManyToOne
     @JoinColumn(
